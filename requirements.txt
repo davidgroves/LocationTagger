@@ -5,3 +5,6 @@ pexif
 piexif
 tzwhere
 pyexiftool
+tqdm
+requests
+cx_freeze

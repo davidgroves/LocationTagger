@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
 
 import arrow
-import logging
-from PIL import Image
-import piexif
 import os
 import json
 import collections
 import exiftool
 from tzwhere import tzwhere
 from os import fsencode
+from wand.image import Image
+import tqdm
+import requests
+import configparser
+import argparse
 
-logging.basicConfig(level=logging.INFO)
 
 def get_closest_location(timestamp, locations):
-    for k,v in locations.items():
+    for k, v in locations.items():
         if k < timestamp:
             return v
-    return (0,0,0)
+    return (0, 0, 0)
+
 
 def dd2dms(deg):
     d = int(deg)
@@ -26,99 +28,122 @@ def dd2dms(deg):
     sd = (md - m) * 60
     return [d, m, sd]
 
-# Load the location file and parse it into a dictionary with key=timestampinMS, and the rest of the exif tag as value.
-locations = collections.OrderedDict()
 
-with open('dave.json') as data_file:
-    data = json.load(data_file)
-    for l in data['locations']:
-        try:
-            altitude = l['altitude']
-        except KeyError:
-            altitude = 0
+def mscv(jpeg, microsoft_key, microsoft_uri):
+    headers = {
+        # Request headers.
+        'Content-Type': 'application/octet-stream',
+        'Ocp-Apim-Subscription-Key': microsoft_key
+    }
 
-        locations[int(l['timestampMs'])] = (float(float(l['latitudeE7']) / 10000000),
-                                            float(float(l['longitudeE7'] / 10000000)),
-                                            altitude)
+    params = {
+        # Request parameters. All of them are optional.
+        'visualFeatures': 'Categories,Description,Color',
+        'language': 'en',
+    }
 
-# FIXME: Don't hardcore directory.
-os.chdir("example_images")
+    response = requests.post(url=microsoft_uri, params=params, headers=headers, data=jpeg)
+    print(response.text)
 
-# Go through each file.
-files = [f for f in os.listdir('.') if os.path.isfile(f)]
-for filename in files:
+    # Check for success.
+    if response.status_code == 200:
+        # Display the response headers.
+        print('Success.')
+        print('Response headers:')
 
-    with exiftool.ExifTool() as et:
-        resp = et.execute_json('-datetimeoriginal', filename)[0]
-        print(resp)
-        print(type(resp))
+        print(response.json())
+        description = ""
+        for caption in response.json()["description"]["captions"]:
+            description += caption["text"] + ". "
+        return description
 
-
-    # Get the timestamp from the file
-    ts = arrow.get(resp['EXIF:DateTimeOriginal'], 'YYYY:MM:DD HH:mm:ss').timestamp * 1000
-    print(ts)
-
-    # Get the GPS location
-    lat, long, alt = get_closest_location(ts, locations)
-    print(lat, long, alt)
-
-    if lat < 0:
-        latref = "W"
-    else:
-        latref = "E"
+        # FIXME: This really needs some error handling here as they are totally unhandled right now !
 
 
-    if long < 0:
-        longref = "S"
-    else:
-        longref = "N"
+###################################################################################################################
 
-    if alt < 0:
-        altref = 1
-    else:
-        altref = 0
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default="config.ini", help='An ini formatted config file')
+    parser.add_argument('--path', help='The pathspec to the images to work on. (Example: example_images/*')
+    parser.add_argument('--locations', help='The locations JSON file from Google')
 
-    latm, lats, latds = dd2dms(lat)
-    longm, longs, longds = dd2dms(long)
+    args = parser.parse_args()
 
-    print(latm, lats, latds)
+    config = configparser.ConfigParser()
+    config.read(args.config)
 
-    # # Add GPS data
-    # gps_ifd = {piexif.GPSIFD.GPSVersionID: (2, 0, 0, 0),
-    #            piexif.GPSIFD.GPSAltitudeRef: altref,
-    #            piexif.GPSIFD.GPSAltitude: (abs(alt), 1),
-    #            piexif.GPSIFD.GPSLatitudeRef: latref,
-    #            piexif.GPSIFD.GPSLatitude: [(latm, 1), (lats, 1), (int(latds * 10000000) , 10000000)],
-    #            piexif.GPSIFD.GPSLongitudeRef: longref,
-    #            piexif.GPSIFD.GPSLongitude: [(longm, 1), (longs, 1), (int(longds * 10000000), 10000000)]
-    #            }
+    # Load the location file and parse it into a dictionary with key=timestampinMS, and the rest of the exif tag as value.
+    locations = collections.OrderedDict()
 
-    tz = tzwhere.tzwhere()
+    with open(args.locations) as data_file:
+        data = json.load(data_file)
+        for l in data['locations']:
+            try:
+                altitude = l['altitude']
+            except KeyError:
+                altitude = 0
 
-    print(tz.tzNameAt(lat, long))
-    #print(gps_ifd)
+            locations[int(l['timestampMs'])] = (float(float(l['latitudeE7']) / 10000000),
+                                                float(float(l['longitudeE7'] / 10000000)),
+                                                altitude)
 
-    # exif_dict["GPS"] = gps_ifd
-    #
-    # exif_bytes = piexif.dump(exif_dict)
-    # im.save("example_output/" + filename, exif=exif_bytes)
+    # FIXME: Don't hardcore directory.
+    os.chdir("example_images")
 
-    with exiftool.ExifTool() as et:
-        print('-GPSLongitude="%s"' % str(long))
-        params = map(fsencode, ['-GPSLongitude=%s' % str(long),
-                                '-GPSLongitudeRef=%s' % str(longref),
-                                '-GPSLatitude=%s' % str(lat),
-                                '-GPSLatitudeRef=%s' % str(latref),
-                                '-GPSAltitude=%s' % str(alt),
-                                '-GPSAltitudeRef=%s' % str(altref),
-                                '-overwrite_original',
-                                '%s' % filename])
-        print(params)
-        et.execute(*params)
-        # params = map(fsencode, ['-GPSLatitude="%s"' % str(lat), '%s' % filename])
-        # et.execute(*params)
-        # params = map(fsencode, ['-GPSAltitude="%s"' % str(alt), '%s' % filename])
-        # et.execute(*params)
+    # Go through each file.
+    files = [f for f in os.listdir('.') if os.path.isfile(f)]
+    for filename in tqdm.tqdm(files):
 
-        # with exiftool.ExifTool() as et:
-    #     params = map(fsencode, ['-GPSLongitude="%s"' % long, '%s' % outfile])
+        with exiftool.ExifTool() as et:
+            resp = et.execute_json('-datetimeoriginal', filename)[0]
+
+        # Get the timestamp from the file
+        ts = arrow.get(resp['EXIF:DateTimeOriginal'], 'YYYY:MM:DD HH:mm:ss').timestamp * 1000
+
+        # Get the GPS location (in decimal)
+        lat, long, alt = get_closest_location(ts, locations)
+
+        # West or East.
+        if lat < 0:
+            latref = "W"
+        else:
+            latref = "E"
+
+        # North or South.
+        if long < 0:
+            longref = "S"
+        else:
+            longref = "N"
+
+        # Above or Below Sea level.
+        if alt < 0:
+            altref = 1
+        else:
+            altref = 0
+
+        latm, lats, latds = dd2dms(lat)
+        longm, longs, longds = dd2dms(long)
+
+        tz = tzwhere.tzwhere()
+
+        with Image(filename=filename) as img:
+            print("Transforming")
+            img.transform(resize="1000000@")
+            print("Converting to JPEG")
+            img.format = 'jpeg'
+
+            caption = mscv(img.make_blob(format='jpeg'), config['microsoft']['key'], config['microsoft']['uri'])
+            print("Caption: " + caption)
+
+        with exiftool.ExifTool() as et:
+            params = map(fsencode, ['-GPSLongitude=%s' % str(long),
+                                    '-GPSLongitudeRef=%s' % str(longref),
+                                    '-GPSLatitude=%s' % str(lat),
+                                    '-GPSLatitudeRef=%s' % str(latref),
+                                    '-GPSAltitude=%s' % str(alt),
+                                    '-GPSAltitudeRef=%s' % str(altref),
+                                    '-ImageDescription=%s' % str(caption),
+                                    '-overwrite_original',
+                                    '%s' % filename])
+            et.execute(*params)
