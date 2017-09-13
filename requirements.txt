@@ -2,4 +2,6 @@ git+https://github.com/smarnach/pyexiftool.git
 arrow
 pillow
 pexif
+piexif
 tzwhere
+pyexiftool

@@ -7,7 +7,9 @@ import piexif
 import os
 import json
 import collections
+import exiftool
 from tzwhere import tzwhere
+from os import fsencode
 
 logging.basicConfig(level=logging.INFO)
 
@@ -45,11 +47,15 @@ os.chdir("example_images")
 # Go through each file.
 files = [f for f in os.listdir('.') if os.path.isfile(f)]
 for filename in files:
-    im = Image.open(filename)
-    exif_dict = piexif.load(im.info["exif"])
+
+    with exiftool.ExifTool() as et:
+        resp = et.execute_json('-datetimeoriginal', filename)[0]
+        print(resp)
+        print(type(resp))
+
 
     # Get the timestamp from the file
-    ts = arrow.get(str(exif_dict["0th"][306]), "YYYY:MM:DD HH:mm:ss").timestamp * 1000  # 306 is the timestamp for the file
+    ts = arrow.get(resp['EXIF:DateTimeOriginal'], 'YYYY:MM:DD HH:mm:ss').timestamp * 1000
     print(ts)
 
     # Get the GPS location
@@ -77,23 +83,42 @@ for filename in files:
 
     print(latm, lats, latds)
 
-
-    # Add GPS data
-    gps_ifd = {piexif.GPSIFD.GPSVersionID: (2, 0, 0, 0),
-               piexif.GPSIFD.GPSAltitudeRef: altref,
-               piexif.GPSIFD.GPSAltitude: (abs(alt), 1),
-               piexif.GPSIFD.GPSLatitudeRef: latref,
-               piexif.GPSIFD.GPSLatitude: [(latm, 1), (lats, 1), (int(latds * 10000000) , 10000000)],
-               piexif.GPSIFD.GPSLongitudeRef: longref,
-               piexif.GPSIFD.GPSLongitude: [(longm, 1), (longs, 1), (int(longds * 10000000), 10000000)]
-               }
+    # # Add GPS data
+    # gps_ifd = {piexif.GPSIFD.GPSVersionID: (2, 0, 0, 0),
+    #            piexif.GPSIFD.GPSAltitudeRef: altref,
+    #            piexif.GPSIFD.GPSAltitude: (abs(alt), 1),
+    #            piexif.GPSIFD.GPSLatitudeRef: latref,
+    #            piexif.GPSIFD.GPSLatitude: [(latm, 1), (lats, 1), (int(latds * 10000000) , 10000000)],
+    #            piexif.GPSIFD.GPSLongitudeRef: longref,
+    #            piexif.GPSIFD.GPSLongitude: [(longm, 1), (longs, 1), (int(longds * 10000000), 10000000)]
+    #            }
 
     tz = tzwhere.tzwhere()
+
     print(tz.tzNameAt(lat, long))
+    #print(gps_ifd)
 
-    print(gps_ifd)
+    # exif_dict["GPS"] = gps_ifd
+    #
+    # exif_bytes = piexif.dump(exif_dict)
+    # im.save("example_output/" + filename, exif=exif_bytes)
 
-    exif_dict["GPS"] = gps_ifd
+    with exiftool.ExifTool() as et:
+        print('-GPSLongitude="%s"' % str(long))
+        params = map(fsencode, ['-GPSLongitude=%s' % str(long),
+                                '-GPSLongitudeRef=%s' % str(longref),
+                                '-GPSLatitude=%s' % str(lat),
+                                '-GPSLatitudeRef=%s' % str(latref),
+                                '-GPSAltitude=%s' % str(alt),
+                                '-GPSAltitudeRef=%s' % str(altref),
+                                '-overwrite_original',
+                                '%s' % filename])
+        print(params)
+        et.execute(*params)
+        # params = map(fsencode, ['-GPSLatitude="%s"' % str(lat), '%s' % filename])
+        # et.execute(*params)
+        # params = map(fsencode, ['-GPSAltitude="%s"' % str(alt), '%s' % filename])
+        # et.execute(*params)
 
-    exif_bytes = piexif.dump(exif_dict)
-    im.save("example_output/" + filename, exif=exif_bytes)
+        # with exiftool.ExifTool() as et:
+    #     params = map(fsencode, ['-GPSLongitude="%s"' % long, '%s' % outfile])
