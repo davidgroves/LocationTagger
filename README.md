@@ -1,3 +1,10 @@
+Purpose
+=======
+
+- To take a directory of images, in almost any format imagemagick supports. Tested image formats include jpeg, tiff, png, DNG raws, Canon CR2 raws, Nikon NEF raws and Fuji RAF raws.
+- To add exif geotag information based on your Google location data.
+- To add a description and tags based on the Microsoft Vision services analysis of your image.
+
 Requirements
 ============
 
@@ -47,3 +54,5 @@ BUGS / FEATURES TO COME
 Exif CreateTime and filesystem create timestamp to match local time. This will allow you to leave a camera in your "home" timezone, and still obtain files with the correct local time when traveling.
 
 - Don't use the "last" location when doing geo, it can be a little inaccurate. Instead, if you are in location A at time 00:00:01, and location B at 00:00:05 and have an image taken at 00:00:03, it should tag it with the location at the midpoint between A and B.
+
+- Use a Google API to obtain location information rather than you needing to get the takeout file.
