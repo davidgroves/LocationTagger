@@ -43,15 +43,10 @@ def mscv(jpeg, microsoft_key, microsoft_uri):
     }
 
     response = requests.post(url=microsoft_uri, params=params, headers=headers, data=jpeg)
-    print(response.text)
 
     # Check for success.
     if response.status_code == 200:
         # Display the response headers.
-        print('Success.')
-        print('Response headers:')
-
-        print(response.json())
         description = ""
         for caption in response.json()["description"]["captions"]:
             description += caption["text"] + ". "
@@ -128,13 +123,10 @@ if __name__ == '__main__':
         tz = tzwhere.tzwhere()
 
         with Image(filename=filename) as img:
-            print("Transforming")
             img.transform(resize="1000000@")
-            print("Converting to JPEG")
             img.format = 'jpeg'
 
             caption = mscv(img.make_blob(format='jpeg'), config['microsoft']['key'], config['microsoft']['uri'])
-            print("Caption: " + caption)
 
         with exiftool.ExifTool() as et:
             params = map(fsencode, ['-GPSLongitude=%s' % str(long),
