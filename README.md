@@ -58,3 +58,7 @@ Exif CreateTime and filesystem create timestamp to match local time. This will a
 - Don't use the "last" location when doing geo, it can be a little inaccurate. Instead, if you are in location A at time 00:00:01, and location B at 00:00:05 and have an image taken at 00:00:03, it should tag it with the location at the midpoint between A and B.
 
 - Use a Google API to obtain location information rather than you needing to get the takeout file.
+
+- Add support for https://cloud.google.com/vision/ as an option.
+
+- Make geotagging / timezone fixing / computer vision all seperate options.
