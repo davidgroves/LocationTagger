@@ -5,6 +5,8 @@ Purpose
 - To add exif geotag information based on your Google location data.
 - To add a description and tags based on the Microsoft Vision services analysis of your image.
 
+Somewhat inspired by https://xkcd.com/1425/, but also just my desire to have better organised images.
+
 Requirements
 ============
 
