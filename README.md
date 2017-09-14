@@ -42,7 +42,7 @@ To print usage instructions :-
 
 A typical example usage will be :-
 
-    $ ./tagger.py --config config.ini --location location.json --path example_images/*
+    $ ./tagger.py --config config.ini --location location.json --path example_images/
 
 Note: This edits the exif/xmp data on the files directly. Make sure you
 have a backup copy of the files.
