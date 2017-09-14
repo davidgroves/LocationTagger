@@ -65,7 +65,7 @@ def mscv(jpeg, microsoft_key, microsoft_uri):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default="config.ini", help='An ini formatted config file')
-    parser.add_argument('--path', help='The pathspec to the images to work on. (Example: example_images/*')
+    parser.add_argument('--path', help='The pathspec to the images to work on. (Example: example_images/')
     parser.add_argument('--locations', help='The locations JSON file from Google')
 
     args = parser.parse_args()
@@ -89,7 +89,7 @@ if __name__ == '__main__':
                                                 altitude)
 
     # FIXME: Don't hardcore directory.
-    os.chdir("example_images")
+    os.chdir(args.path)
 
     # Go through each file.
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
