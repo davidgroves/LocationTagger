@@ -1,3 +1,8 @@
+DEPRECATED
+==========
+
+This is largely useless now with modern Adobe Creative Suite capabilities.
+
 Purpose
 =======
 
